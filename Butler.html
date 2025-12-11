@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Will Vandalia Butler Schools be closed tomorrow?</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #2c1458;
+      padding: 20px;
+      display: flex;
+      justify-content: center;
+    }
+
+    .box {
+      background: #fdf5c3;
+      padding: 24px 30px 30px;
+      border-radius: 18px;
+      width: 620px;
+      box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+      border: 3px solid #f4d64b;
+    }
+
+    h1 {
+      text-align: center;
+      margin-top: 0;
+      margin-bottom: 12px;
+      color: #2c1458;
+      font-size: 1.8rem;
+      font-weight: 900;
+    }
+
+    .subtitle {
+      text-align: center;
+      font-size: 1rem;
+      color: #4b3a7a;
+      font-weight: 600;
+      margin-bottom: 1.2rem;
+    }
+
+    .zip-display {
+      text-align: center;
+      font-weight: bold;
+      margin-bottom: 14px;
+      color: #2c1458;
+      font-size: 1rem;
+    }
+
+    button {
+      margin-top: 10px;
+      width: 100%;
+      padding: 14px;
+      border: none;
+      border-radius: 12px;
+      background: #4b2ca3;
+      color: #ffe875;
+      font-size: 1.1rem;
+      font-weight: 700;
+      cursor: pointer;
+      box-shadow: 0 3px 10px rgba(0, 0, 0, 0.35);
+      transition: transform 0.05s ease, box-shadow 0.1s ease, background 0.1s ease;
+    }
+
+    button:hover {
+      background: #3b2283;
+      box-shadow: 0 5px 14px rgba(0, 0, 0, 0.45);
+    }
+
+    button:active {
+      transform: translateY(1px);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.45);
+    }
+
+    .result {
+      margin-top: 24px;
+      padding: 20px;
+      background: #ffffff;
+      border-radius: 14px;
+      border: 2px solid #4b2ca3;
+      color: #2c1458;
+      box-shadow: 0 4px 14px rgba(0,0,0,0.25);
+      display: none;
+    }
+
+    .result-title {
+      font-size: 1.3rem;
+      font-weight: 900;
+      text-align: center;
+      margin-bottom: 16px;
+      color: #4b2ca3;
+      text-transform: uppercase;
+    }
+
+    .score {
+      font-size: 1.5rem;
+      font-weight: 900;
+      margin-bottom: 10px;
+      text-align: center;
+      color: #2c1458;
+    }
+
+    .high-score-tag {
+      background: #ffe875;
+      border: 3px solid #4b2ca3;
+      padding: 6px 12px;
+      border-radius: 10px;
+      display: inline-block;
+      margin-bottom: 10px;
+    }
+
+    .prediction {
+      font-size: 1.2rem;
+      font-weight: 700;
+      margin-bottom: 16px;
+      text-align: center;
+      color: #4b2ca3;
+    }
+
+    .details {
+      font-size: 0.95rem;
+      line-height: 1.45;
+      white-space: pre-line;
+      font-weight: 500;
+    }
+
+    .error {
+      color: #b00020;
+      margin-top: 10px;
+      font-weight: 700;
+      text-align: center;
+    }
+
+    .footer-note {
+      margin-top: 16px;
+      font-size: 0.85rem;
+      text-align: center;
+      color: #4b3a7a;
+      font-style: italic;
+      font-weight: 500;
+    }
+  </style>
+</head>
+<body>
+
+<div class="box">
+  <h1>Will Vandalia Butler Schools be closed tomorrow?</h1>
+
+  <div class="subtitle">
+    Snow Day Predictor using the next 24 hours of forecast for Vandalia (45377).
+  </div>
+
+  <div class="zip-display">
+    Forecast location: <strong>Vandalia, OH 45377</strong>
+  </div>
+
+  <button onclick="predictSnowDay()">Fetch forecast and calculate Snow Day Score</button>
+
+  <div id="error" class="error"></div>
+
+  <div id="result" class="result">
+    <div class="result-title">Snow Day Analysis</div>
+    <div id="score" class="score"></div>
+    <div id="prediction" class="prediction"></div>
+    <div id="details" class="details"></div>
+  </div>
+
+  <div class="footer-note">
+    This is an estimate based on live forecast data, not an official district decision.
+  </div>
+</div>
+
+<script>
+  // Hard coded coordinates for Vandalia, OH 45377
+  const LAT = 39.89636;
+  const LON = -84.22774;
+
+  async function predictSnowDay() {
+    const errorDiv = document.getElementById("error");
+    const resultDiv = document.getElementById("result");
+    const scoreDiv = document.getElementById("score");
+    const predictionDiv = document.getElementById("prediction");
+    const detailsDiv = document.getElementById("details");
+
+    errorDiv.textContent = "";
+    resultDiv.style.display = "none";
+    scoreDiv.textContent = "";
+    predictionDiv.textContent = "";
+    detailsDiv.textContent = "";
+
+    try {
+      // Call Open Meteo for hourly forecast, no key required
+      const url = "https://api.open-meteo.com/v1/forecast"
+        + "?latitude=" + LAT
+        + "&longitude=" + LON
+        + "&hourly=temperature_2m,precipitation,snowfall,windspeed_10m"
+        + "&timezone=auto"
+        + "&forecast_days=2";
+
+      const res = await fetch(url);
+      if (!res.ok) {
+        throw new Error("Could not get forecast data from Open Meteo.");
+      }
+
+      const data = await res.json();
+      const hourly = data.hourly;
+      if (!hourly || !hourly.time || !hourly.temperature_2m) {
+        throw new Error("Forecast data format was not as expected.");
+      }
+
+      const times = hourly.time;
+      const temps = hourly.temperature_2m;
+      const precip = hourly.precipitation || [];
+      const snow = hourly.snowfall || [];
+      const wind = hourly.windspeed_10m || [];
+
+      const now = new Date();
+      const indices = [];
+
+      // Pick the next 24 hours starting from now
+      for (let i = 0; i < times.length; i++) {
+        const t = new Date(times[i]);
+        if (t >= now && indices.length < 24) {
+          indices.push(i);
+        }
+      }
+
+      if (!indices.length) {
+        throw new Error("No upcoming hourly data found.");
+      }
+
+      // Stats for next 24 hours
+      let totalSnowEvents24 = 0;
+      let minTemp24 = Infinity;
+      let maxWind24 = 0;
+      let freezing24 = false;
+
+      // Critical window 1 to 6 am
+      let totalSnowCritical = 0;
+      let minTempCritical = Infinity;
+      let maxWindCritical = 0;
+      let freezingCritical = false;
+
+      for (const idx of indices) {
+        const t = new Date(times[idx]);
+        const hourLocal = t.getHours();
+        const temp = typeof temps[idx] === "number" ? temps[idx] : null;
+        const p = precip[idx] || 0;
+        const s = snow[idx] || 0;
+        const w = wind[idx] || 0;
+
+        // Treat any snowfall or precip above a small amount as a "snowy or wintry" period
+        const snowy = s > 0 || p > 0;
+        const possiblyFreezing = s > 0 || (p > 0 && temp !== null && temp <= 32);
+
+        if (temp !== null) {
+          minTemp24 = Math.min(minTemp24, temp);
+        }
+        maxWind24 = Math.max(maxWind24, w);
+
+        if (snowy) {
+          totalSnowEvents24 += 1;
+        }
+        if (possiblyFreezing) {
+          freezing24 = true;
+        }
+
+        const inCritical = hourLocal >= 1 && hourLocal <= 6;
+        if (inCritical) {
+          if (temp !== null) {
+            minTempCritical = Math.min(minTempCritical, temp);
+          }
+          maxWindCritical = Math.max(maxWindCritical, w);
+
+          if (snowy) {
+            totalSnowCritical += 1;
+          }
+          if (possiblyFreezing) {
+            freezingCritical = true;
+          }
+        }
+      }
+
+      if (minTemp24 === Infinity) minTemp24 = null;
+      if (minTempCritical === Infinity) minTempCritical = null;
+
+      // Scoring model
+      let score = 0;
+
+      // Snow scoring over 24 hours
+      if (totalSnowEvents24 > 12) score += 40;
+      else if (totalSnowEvents24 > 8) score += 30;
+      else if (totalSnowEvents24 > 4) score += 20;
+      else if (totalSnowEvents24 > 2) score += 10;
+
+      if (freezing24) score += 15;
+
+      // Temperature scoring 24 hours
+      if (minTemp24 !== null) {
+        if (minTemp24 <= -20) score += 25;
+        else if (minTemp24 <= -10) score += 18;
+        else if (minTemp24 <= 0) score += 10;
+        else if (minTemp24 <= 10) score += 5;
+      }
+
+      // Wind scoring 24 hours
+      if (maxWind24 > 30) score += 10;
+      else if (maxWind24 > 20) score += 5;
+
+      // Critical window 1 to 6 am
+      if (totalSnowCritical >= 3) score += 20;
+      else if (totalSnowCritical === 2) score += 15;
+      else if (totalSnowCritical === 1) score += 10;
+
+      if (freezingCritical) score += 10;
+
+      if (minTempCritical !== null) {
+        if (minTempCritical <= 0) score += 10;
+        else if (minTempCritical <= 10) score += 5;
+      }
+
+      if (maxWindCritical > 30) score += 5;
+
+      if (score < 0) score = 0;
+      if (score > 100) score = 100;
+
+      // Interpretation
+      let interpretation = "";
+      if (score <= 30) interpretation = "Very unlikely that school will close.";
+      else if (score <= 50) interpretation = "Unlikely closure. A delay is possible.";
+      else if (score <= 70) interpretation = "Possible closure. Conditions should be monitored.";
+      else if (score <= 85) interpretation = "Likely closure based on this forecast.";
+      else interpretation = "Very likely closure if the forecast holds.";
+
+      // Display score
+      if (score >= 70) {
+        scoreDiv.innerHTML = '<span class="high-score-tag">Snow Day Score: ' + score + '/100</span>';
+      } else {
+        scoreDiv.textContent = "Snow Day Score: " + score + "/100";
+      }
+
+      predictionDiv.textContent = interpretation;
+
+      const temp24Text = minTemp24 !== null ? minTemp24.toFixed(1) + " °F" : "N/A";
+      const tempCritText = minTempCritical !== null ? minTempCritical.toFixed(1) + " °F" : "N/A";
+
+      const detailsText =
+        "Next 24 hours summary:\n" +
+        "  Approximate number of wintry periods: " + totalSnowEvents24 + "\n" +
+        "  Coldest temperature: " + temp24Text + "\n" +
+        "  Maximum wind speed: " + maxWind24.toFixed(1) + " mph (approx)\n" +
+        "  Any freezing or wintry precipitation: " + (freezing24 ? "Yes" : "No") + "\n\n" +
+        "Critical window (1 am to 6 am):\n" +
+        "  Wintry periods: " + totalSnowCritical + "\n" +
+        "  Coldest temperature: " + tempCritText + "\n" +
+        "  Maximum wind speed: " + maxWindCritical.toFixed(1) + " mph (approx)\n" +
+        "  Any freezing or wintry precipitation: " + (freezingCritical ? "Yes" : "No");
+
+      detailsDiv.textContent = detailsText;
+
+      resultDiv.style.display = "block";
+
+    } catch (err) {
+      errorDiv.textContent = err.message || "Something went wrong while loading the forecast.";
+    }
+  }
+</script>
+
+</body>
+</html>
